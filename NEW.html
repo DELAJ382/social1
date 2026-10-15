@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DelajLocation - All Functions</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,sans-serif}
+body{background:#000;color:#fff;overflow-x:hidden}
+.topbar{height:56px;background:#000;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;padding:0 14px;position:fixed;top:0;left:0;right:0;z-index:1000}
+.logo{font-weight:900;font-size:17px}.logo span{color:#00ff88}
+.icon-btn{background:#1a1a1a;border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer}
+.app{padding-top:56px;padding-bottom:62px;display:flex;min-height:100vh}
+#map{width:100%;height:50vh} @media(min-width:900px){#map{height:calc(100vh - 118px)}}
+.map-side{flex:1;background:#0a0a0a;display:none} .map-side.active{display:block}
+.feed-side{flex:1;max-width:520px;margin:0 auto;background:#000;width:100%;display:block}
+.post-card{background:#111;margin-bottom:10px;border:1px solid #1e1e1e;border-radius:16px;overflow:hidden;transition:outline .3s}
+.post-card.highlighted{outline:2px solid #00ff88;outline-offset:2px;box-shadow:0 0 20px rgba(0,255,136,.35)}
+.post-media{background:#000;display:flex;align-items:center;justify-content:center;position:relative}
+.post-media video,.post-media img{width:100%;max-height:75vh;object-fit:contain;background:#000}
+.post-info{padding:12px}
+.loc-pill{background:#00ff88;color:#000;font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
+.action-row{display:flex;gap:18px;margin-top:10px;border-top:1px solid #1a1a1a;padding-top:10px;align-items:center;flex-wrap:wrap}
+.act{background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;display:flex;gap:5px;align-items:center}
+.act.liked{color:#ff2d55}
+.pin-card{border:1.5px solid gold!important;box-shadow:0 0 12px rgba(255,215,0,.3)}
+.pinned-tag{background:gold;color:#000;font-size:10px;font-weight:900;padding:3px 8px;border-radius:10px;position:absolute;top:10px;left:10px}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:62px;background:#000;border-top:1px solid #1a1a1a;display:flex;justify-content:space-around;align-items:center;z-index:1000}
+.nav-item{background:none;border:none;color:#666;font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center}
+.nav-item.active{color:#fff} .nav-item b{font-size:20px}
+.create-box{position:fixed;bottom:62px;left:50%;transform:translateX(-50%);width:100%;max-width:520px;background:#111;border-top:1px solid #222;padding:12px;z-index:999;display:none}
+.create-box.show{display:block}
+.preview{width:100%;border-radius:12px;margin-top:8px;max-height:220px;object-fit:cover;display:none}
+#authModal,#accountModal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;display:none;align-items:center;justify-content:center;padding:20px}
+.authBox{background:#111;border:1px solid #222;padding:20px;border-radius:20px;width:100%;max-width:360px}
+.btn-primary{background:#fff;color:#000;border:none;padding:12px;border-radius:24px;font-weight:800;width:100%;cursor:pointer}
+.trend-item{background:#111;padding:14px;border-radius:14px;margin-top:8px;display:flex;justify-content:space-between;border:1px solid #1a1a1a;cursor:pointer}
+.filter-bar{display:flex;gap:8px;padding:10px;overflow-x:auto}
+.filter-btn{background:#1a1a1a;border:1px solid #222;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;white-space:nowrap;cursor:pointer}
+.filter-btn.active{background:#00ff88;color:#000;border-color:#00ff88}
+.authTabs{display:flex;background:#1a1a1a;border-radius:14px;padding:4px;gap:4px}
+.authTab{flex:1;background:none;border:none;color:#888;padding:9px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer}
+.authTab.active{background:#00ff88;color:#000}
+.authInput{width:100%;padding:12px;background:#1a1a1a;border:1px solid #222;color:#fff;border-radius:10px;margin-top:8px;font-size:14px;outline:none}
+.authInput:focus{border-color:#00ff88}
+.authErr{display:none;background:#2a0d12;border:1px solid #ff2d55;color:#ff8fa3;font-size:12px;padding:10px;border-radius:10px;margin-top:10px;line-height:1.45}
+.authLink{background:none;border:none;color:#888;width:100%;margin-top:12px;font-size:12px;cursor:pointer;text-decoration:underline}
+.user-pulse{background:#00ff88;border-radius:50%;box-shadow:0 0 0 0 rgba(0,255,136,.7);animation:pulse 2s infinite}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(0,255,136,.7)}
+  70%{box-shadow:0 0 0 22px rgba(0,255,136,0)}
+  100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}
+}
+.leaflet-popup-content-wrapper{background:#111;color:#fff;border-radius:12px}
+.leaflet-popup-tip{background:#111}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+<div class="logo">📍 <span>DELAJ</span>LOCATION</div>
+<div style="display:flex;gap:8px;align-items:center">
+  <span id="locStatus" style="font-size:11px;color:#888">📍 Getting location...</span>
+  <button class="icon-btn" onclick="toggleCreate()">+</button>
+  <div id="userArea"><button class="icon-btn" onclick="openAuth()">👤</button></div>
+</div>
+</div>
+
+<div class="app">
+  <div id="mapPanel" class="map-side">
+    <div id="map"></div>
+    <div style="padding:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="filter-btn" onclick="requestLocation(true)">📍 My Location</button>
+      <button class="filter-btn" onclick="switchTab('feed');filterNear()">Near Me 5km</button>
+      <button class="filter-btn" onclick="switchTab('feed');showAllPosts()">All Posts</button>
+    </div>
+  </div>
+
+  <div id="feedPanel" class="feed-side">
+    <div class="filter-bar">
+      <button class="filter-btn active" id="f-all" onclick="showAllPosts()">All</button>
+      <button class="filter-btn" id="f-near" onclick="filterNear()">📍 Near Me</button>
+      <button class="filter-btn" onclick="switchTab('trend')">🔥 Trending</button>
+    </div>
+    <div id="posts"></div>
+  </div>
+
+  <div id="trendPanel" class="map-side">
+    <div style="padding:16px">
+      <h3>🔥 Trending in Lagos</h3>
+      <p style="color:#666;font-size:11px;margin-top:4px">Most posted locations - tap to filter</p>
+      <div id="trendingList" style="margin-top:12px"></div>
+      <button style="margin-top:16px;background:#1a1a1a;border:none;color:#fff;padding:10px;border-radius:20px;width:100%" onclick="switchTab('feed')">Back to Feed</button>
+    </div>
+  </div>
+</div>
+
+<div id="createBox" class="create-box">
+<textarea id="postText" rows="2" placeholder="What's happening here?" style="width:100%;background:#1a1a1a;border:none;color:#fff;padding:12px;border-radius:12px;font-size:14px"></textarea>
+<input id="customLoc" placeholder="Location e.g Ikeja Computer Village" style="width:100%;background:#1a1a1a;border:none;color:#fff;padding:10px;border-radius:10px;margin-top:8px;font-size:13px">
+<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><label style="background:#1a1a1a;padding:8px 12px;border-radius:20px;font-size:12px;cursor:pointer">📷 Photo/Video<input type="file" id="photoInput" accept="image/*,video/*" style="display:none" onchange="previewMedia()"></label><span id="mediaInfo" style="font-size:11px;color:#888"></span></div>
+<img id="photoPreview" class="preview"><video id="videoPreview" class="preview" controls muted></video>
+<p id="uploadStatus" style="font-size:11px;color:#00ff88;display:none;margin-top:6px"></p>
+<div style="display:flex;justify-content:space-between;margin-top:10px"><button style="background:none;border:none;color:#888" onclick="toggleCreate()">Cancel</button><button onclick="createPost()" style="background:#00ff88;border:none;color:#000;padding:10px 24px;border-radius:20px;font-weight:800">Post Now</button></div>
+</div>
+
+<div class="bottom-nav">
+<button class="nav-item active" id="nav-feed" onclick="switchTab('feed')"><b>▶️</b>Feed</button>
+<button class="nav-item" id="nav-map" onclick="switchTab('map')"><b>🗺️</b>Map</button>
+<button class="nav-item" onclick="toggleCreate()"><b style="background:#fff;color:#000;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">+</b>Post</button>
+<button class="nav-item" id="nav-trend" onclick="switchTab('trend')"><b>🔥</b>Trend</button>
+<button class="nav-item" onclick="openAuth()"><b>👤</b>You</button>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="authModal">
+  <div class="authBox">
+    <div class="authTabs">
+      <button type="button" id="tabLogin" class="authTab active" onclick="setAuthMode('login')">Log In</button>
+      <button type="button" id="tabSignup" class="authTab" onclick="setAuthMode('signup')">Sign Up</button>
+    </div>
+    <h3 id="authTitle" style="font-weight:900;margin-top:14px">Welcome back</h3>
+    <p id="authSub" style="color:#666;font-size:12px;margin-top:4px">Log in to post where you are in Lagos</p>
+    <div id="nameField" style="display:none">
+      <input id="displayName" class="authInput" type="text" placeholder="Username (e.g. delaj_king)" autocomplete="nickname" maxlength="20">
+    </div>
+    <input id="email" class="authInput" type="email" placeholder="Email" autocomplete="email" style="margin-top:14px">
+    <input id="password" class="authInput" type="password" placeholder="Password" autocomplete="current-password">
+    <div id="confirmField" style="display:none">
+      <input id="password2" class="authInput" type="password" placeholder="Confirm password" autocomplete="new-password">
+    </div>
+    <p id="authError" class="authErr"></p>
+    <button id="authSubmit" class="btn-primary" style="margin-top:14px" onclick="submitAuth()">Log In</button>
+    <button id="forgotBtn" class="authLink" type="button" onclick="resetPassword()">Forgot password?</button>
+    <button class="authLink" type="button" onclick="closeAuth()">Close</button>
+  </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div id="accountModal">
+  <div class="authBox">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div id="acctAvatar" style="width:48px;height:48px;border-radius:50%;background:#00ff88;color:#000;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex:0 0 auto"></div>
+      <div style="min-width:0">
+        <div id="acctName" style="font-weight:800;overflow:hidden;text-overflow:ellipsis"></div>
+        <div id="acctEmail" style="font-size:12px;color:#888;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+    </div>
+    <button class="btn-primary" style="margin-top:16px" onclick="signOutUser()">Sign Out</button>
+    <button class="authLink" type="button" onclick="closeAccount()">Close</button>
+  </div>
+</div>
+
+<script>
+// ===== REPLACE THESE ONLY =====
+const PAYSTACK_PUBLIC_KEY = "pk_test_PUT_KEY";
+// CARTO Basemaps API key — applied to the rastertiles endpoint as ?key=
+const CARTO_API_KEY = "cb1_4kr4_1_cbd89a40a1788bbd74a22c47";
+const firebaseConfig = {
+  apiKey: "AIzaSyDIAAOD5A41mmdo1I7O2etNXKdZZ4IAVZA",
+  authDomain: "desocial-26dd1.firebaseapp.com",
+  projectId: "desocial-26dd1",
+  storageBucket: "desocial-26dd1.firebasestorage.app",
+  messagingSenderId: "388387546357",
+  appId: "1:388387546357:web:881c774d8f6d5700bd91bc",
+  measurementId: "G-6Z0TK8S6FK"
+};
+// ==============================
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore(), auth = firebase.auth(), storage = firebase.storage();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+
+/* ===================== MAP (CARTO rastertiles with API key + OSM fallback) ===================== */
+const LAGOS = [6.5244, 3.3792];
+let map = L.map('map', { zoomControl: true }).setView(LAGOS, 12);
+
+// --- Primary: CARTO Dark Matter (rastertiles endpoint + ?key=) ---
+const cartoDark = L.tileLayer(
+  `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`,
+  {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 20,
+    detectRetina: true
+  }
+);
+
+// --- Fallback: OSM standard (no key needed) — only if CARTO tiles fail repeatedly ---
+const osmStandard = L.tileLayer(
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }
+);
+
+let tileErrors = 0;
+cartoDark.on('tileerror', () => {
+  tileErrors++;
+  if(tileErrors > 3 && map.hasLayer(cartoDark)){
+    console.warn('CARTO tiles failing — switching to OSM fallback.');
+    map.removeLayer(cartoDark);
+    osmStandard.addTo(map);
+  }
+});
+cartoDark.addTo(map);
+
+// Post markers layer
+let markers = L.layerGroup().addTo(map);
+
+// User location marker (separate from post markers)
+let userMarker = null;
+
+let myLat = LAGOS[0], myLng = LAGOS[1], myLocationName = "Lagos";
+let allPosts = [], currentFeedList = [];
+let currentUser = null, myLikes = new Set();
+let selectedFile = null, selectedType = null;
+let offlineMode = false, receivedPostsSnapshot = false;
+let deepLinkHandled = false;
+let hasRealLocation = false;
+
+/* ===================== LOCATION ===================== */
+function dropUserMarker(lat, lng){
+  if(userMarker) map.removeLayer(userMarker);
+  userMarker = L.marker([lat, lng], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div style="position:relative;width:26px;height:26px">
+        <div class="user-pulse" style="position:absolute;inset:0;border:3px solid #fff"></div>
+        <div style="position:absolute;inset:8px;background:#00ff88;border-radius:50%;border:2px solid #000"></div>
+      </div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
+    })
+  }).addTo(map).bindPopup("📍 You are here");
+  userMarker.openPopup();
+}
+
+function requestLocation(showAlert){
+  if(!navigator.geolocation){
+    document.getElementById('locStatus').innerText = '📍 Lagos (default)';
+    if(showAlert) alert('Your browser does not support location.');
+    return;
+  }
+  document.getElementById('locStatus').innerText = '📍 Locating...';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      myLat = pos.coords.latitude;
+      myLng = pos.coords.longitude;
+      hasRealLocation = true;
+      map.setView([myLat, myLng], 15);
+      dropUserMarker(myLat, myLng);
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${myLat}&lon=${myLng}`)
+        .then(r => r.json())
+        .then(d => {
+          myLocationName = d.address.suburb || d.address.neighbourhood || d.address.city || "Lagos";
+          document.getElementById('locStatus').innerText = offlineMode ? '📍 Offline mode' : "📍 " + myLocationName;
+        })
+        .catch(()=>{ document.getElementById('locStatus').innerText = '📍 My location'; });
+    },
+    err => {
+      console.warn('Geolocation error:', err.code, err.message);
+      document.getElementById('locStatus').innerText = '📍 Lagos (tap 📍 to retry)';
+      if(showAlert){
+        let msg = 'Could not get your location.';
+        if(err.code === 1) msg = 'Location permission was denied.\n\nPlease allow location access in your browser settings, then tap "My Location" again.';
+        else if(err.code === 2) msg = 'Your location is unavailable right now. Check your GPS / network and try again.';
+        else if(err.code === 3) msg = 'Location request timed out. Try again.';
+        alert(msg + '\n\nYou can still browse the map and posts freely.');
+      }
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+  );
+}
+// Silent on first load — map appears immediately at Lagos, then centers on user if granted
+requestLocation(false);
+
+// Built-in Leaflet "locate me" button (top-left of map)
+const LocateControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd: function(){
+    const btn = L.DomUtil.create('button', 'leaflet-bar');
+    btn.innerHTML = '🎯';
+    btn.title = 'Find my location';
+    btn.style.cssText = 'width:34px;height:34px;background:#111;color:#00ff88;border:1px solid #333;font-size:16px;cursor:pointer;border-radius:6px';
+    L.DomEvent.on(btn, 'click', e => { L.DomEvent.stop(e); requestLocation(true); });
+    return btn;
+  }
+});
+map.addControl(new LocateControl());
+
+/* ===================== OFFLINE ===================== */
+function enableOfflineMode(force = false){
+  if((receivedPostsSnapshot && !force) || offlineMode) return;
+  offlineMode = true;
+  allPosts = JSON.parse(localStorage.getItem('delaj_local_posts') || '[]');
+  currentFeedList = allPosts;
+  document.getElementById('locStatus').innerText = '📍 Offline mode';
+  renderFeed(allPosts); renderTrending();
+}
+setTimeout(()=>{ if(!receivedPostsSnapshot) enableOfflineMode(true); }, 8000);
+
+/* ===================== NAV ===================== */
+function switchTab(t){
+  document.querySelectorAll('.map-side').forEach(e => e.classList.remove('active'));
+  document.getElementById('feedPanel').style.display = 'none';
+  document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+  if(t === 'map'){
+    document.getElementById('mapPanel').classList.add('active');
+    document.getElementById('nav-map').classList.add('active');
+    setTimeout(()=>map.invalidateSize(), 200);
+  }
+  if(t === 'feed'){
+    document.getElementById('feedPanel').style.display = 'block';
+    document.getElementById('nav-feed').classList.add('active');
+  }
+  if(t === 'trend'){
+    document.getElementById('trendPanel').classList.add('active');
+    document.getElementById('nav-trend').classList.add('active');
+  }
+}
+function toggleCreate(){
+  document.getElementById('createBox').classList.toggle('show');
+  if(document.getElementById('createBox').classList.contains('show')) switchTab('feed');
+}
+
+/* ===================== AUTH ===================== */
+let authMode = 'login';
+
+function openAuth(){
+  if(currentUser) return openAccount();
+  setAuthMode('login');
+  document.getElementById('authModal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('email').focus(), 80);
+}
+function closeAuth(){ document.getElementById('authModal').style.display = 'none'; }
+
+function openAccount(){
+  if(!currentUser) return openAuth();
+  const label = currentUser.displayName || currentUser.email || 'U';
+  document.getElementById('acctAvatar').innerText = label[0].toUpperCase();
+  document.getElementById('acctName').innerText  = currentUser.displayName || 'Delaj user';
+  document.getElementById('acctEmail').innerText = currentUser.email || '';
+  document.getElementById('accountModal').style.display = 'flex';
+}
+function closeAccount(){ document.getElementById('accountModal').style.display = 'none'; }
+async function signOutUser(){
+  try{ await auth.signOut(); }catch(e){ alert(e.message); }
+  closeAccount();
+}
+
+function setAuthMode(mode){
+  authMode = mode;
+  const isSignup = mode === 'signup';
+  document.getElementById('tabLogin').classList.toggle('active', !isSignup);
+  document.getElementById('tabSignup').classList.toggle('active', isSignup);
+  document.getElementById('nameField').style.display    = isSignup ? 'block' : 'none';
+  document.getElementById('confirmField').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('forgotBtn').style.display    = isSignup ? 'none'  : 'block';
+  document.getElementById('authTitle').innerText = isSignup ? 'Create your account' : 'Welcome back';
+  document.getElementById('authSub').innerText   = isSignup
+      ? 'Pick a username and start posting your Lagos'
+      : 'Log in to post where you are in Lagos';
+  document.getElementById('authSubmit').innerText = isSignup ? 'Sign Up' : 'Log In';
+  document.getElementById('password').setAttribute('autocomplete', isSignup ? 'new-password' : 'current-password');
+  showAuthError('');
+}
+function showAuthError(msg){
+  const el = document.getElementById('authError');
+  el.innerText = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+function setAuthBusy(busy, label){
+  const b = document.getElementById('authSubmit');
+  b.disabled = busy;
+  b.style.opacity = busy ? .6 : 1;
+  b.innerText = busy ? (label || 'Please wait...') : (authMode === 'signup' ? 'Sign Up' : 'Log In');
+}
+function clearAuthForm(){
+  document.getElementById('email').value = '';
+  document.getElementById('password').value = '';
+  document.getElementById('password2').value = '';
+  document.getElementById('displayName').value = '';
+}
+function friendlyAuthError(err){
+  const code = (err && err.code) || '';
+  switch(code){
+    case 'auth/invalid-email':            return 'That email address is not valid.';
+    case 'auth/missing-password':         return 'Please enter your password.';
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':return 'Wrong email or password. Try "Forgot password?".';
+    case 'auth/user-not-found':           return 'No account with that email. Switch to Sign Up to create one.';
+    case 'auth/email-already-in-use':     return 'That email already has an account. Switch to Log In.';
+    case 'auth/weak-password':            return 'Password too weak — use at least 6 characters.';
+    case 'auth/too-many-requests':        return 'Too many attempts. Wait a few minutes and try again.';
+    case 'auth/network-request-failed':   return 'Network problem. Check your internet and try again.';
+    case 'auth/operation-not-allowed':    return 'Email/Password sign-in is disabled. Enable it in Firebase Console → Authentication → Sign-in method.';
+    case 'auth/unauthorized-domain':      return 'This domain is not authorised in Firebase Console → Authentication → Settings → Authorized domains.';
+    default:                              return (err && err.message) ? err.message : 'Something went wrong. Try again.';
+  }
+}
+async function submitAuth(){
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const pass  = document.getElementById('password').value;
+  const name  = document.getElementById('displayName').value.trim();
+  const pass2 = document.getElementById('password2').value;
+  showAuthError('');
+  if(!email) return showAuthError('Please enter your email.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showAuthError('That email does not look right.');
+  if(!pass) return showAuthError('Please enter your password.');
+  if(pass.length < 6) return showAuthError('Password must be at least 6 characters.');
+  if(authMode === 'signup'){
+    if(!name) return showAuthError('Please pick a username.');
+    if(name.length < 3) return showAuthError('Username must be at least 3 characters.');
+    if(!/^[a-zA-Z0-9_.]+$/.test(name)) return showAuthError('Username can only use letters, numbers, _ and .');
+    if(pass !== pass2) return showAuthError('Passwords do not match.');
+  }
+  setAuthBusy(true, authMode === 'signup' ? 'Creating account...' : 'Logging in...');
+  try{
+    if(authMode === 'signup'){
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      try{ await cred.user.updateProfile({ displayName: name }); }catch(e){ console.warn(e); }
+      db.collection('users').doc(cred.user.uid).set({
+        username: name, email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(e => console.warn('users doc write failed', e));
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+    clearAuthForm();
+    closeAuth();
+  }catch(err){
+    console.error('Auth error:', err.code, err.message);
+    showAuthError(friendlyAuthError(err));
+    if(err.code === 'auth/email-already-in-use') setTimeout(()=>setAuthMode('login'), 1200);
+  }finally{
+    setAuthBusy(false);
+  }
+}
+async function resetPassword(){
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  if(!email) return showAuthError('Type your email in the box above first, then tap "Forgot password?".');
+  setAuthBusy(true, 'Sending...');
+  try{
+    await auth.sendPasswordResetEmail(email);
+    showAuthError('');
+    alert('Reset link sent to ' + email + '\n\nCheck your inbox and spam folder.');
+  }catch(err){
+    showAuthError(friendlyAuthError(err));
+  }finally{ setAuthBusy(false); }
+}
+document.getElementById('authModal').addEventListener('keydown', e => {
+  if(e.key === 'Enter'){ e.preventDefault(); submitAuth(); }
+});
+
+/* ===================== AUTH STATE + USER LIKES ===================== */
+auth.onAuthStateChanged(u => {
+  currentUser = u;
+  myLikes = new Set();
+  const area = document.getElementById('userArea');
+  if(u){
+    const label = u.displayName || u.email || 'U';
+    area.innerHTML = `<button class="icon-btn" style="background:#00ff88;color:#000;font-weight:900" onclick="openAccount()">${label[0].toUpperCase()}</button>`;
+    closeAuth();
+    db.collection('likes').where('userId', '==', u.uid).get()
+      .then(snap => {
+        myLikes = new Set(snap.docs.map(d => d.data().postId));
+        renderFeed(currentFeedList);
+      })
+      .catch(err => console.warn('Could not load likes:', err));
+  } else {
+    area.innerHTML = `<button class="icon-btn" onclick="openAuth()">👤</button>`;
+    closeAccount();
+    renderFeed(currentFeedList);
+  }
+});
+
+/* ===================== MEDIA PREVIEW / UPLOAD ===================== */
+async function previewMedia(){
+  let file = document.getElementById('photoInput').files[0]; if(!file) return;
+  if(file.type.startsWith('video/')){
+    if(file.size > 20 * 1024 * 1024) return alert("Video too big - max 20MB");
+    selectedType = 'video'; selectedFile = file;
+    let v = document.getElementById('videoPreview'); v.src = URL.createObjectURL(file); v.style.display = 'block';
+    document.getElementById('photoPreview').style.display = 'none';
+    document.getElementById('mediaInfo').innerText = `🎥 ${(file.size/1024/1024).toFixed(1)}MB`;
+    v.onloadedmetadata = () => {
+      if(v.duration > 35){ alert("Video must be max 30 seconds"); selectedFile = null; v.style.display = 'none'; document.getElementById('mediaInfo').innerText = ''; }
+    };
+  } else {
+    selectedType = 'image'; let img = document.createElement('img'); img.src = URL.createObjectURL(file);
+    await new Promise(r => img.onload = r);
+    let canvas = document.createElement('canvas'); let maxW = 800, scale = Math.min(1, maxW / img.width);
+    canvas.width = img.width * scale; canvas.height = img.height * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    let blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.7)); selectedFile = blob;
+    document.getElementById('photoPreview').src = URL.createObjectURL(blob);
+    document.getElementById('photoPreview').style.display = 'block';
+    document.getElementById('videoPreview').style.display = 'none';
+    document.getElementById('mediaInfo').innerText = '📷 Compressed to save data';
+  }
+}
+async function uploadToStorage(file){
+  let ref = storage.ref(`posts/${Date.now()}_${file.name || 'video'}`);
+  await ref.put(file);
+  return ref.getDownloadURL();
+}
+
+/* ===================== POSTS SNAPSHOT ===================== */
+db.collection("posts").orderBy("timestamp", "desc").limit(200).onSnapshot(snap => {
+  if(snap.metadata.fromCache && offlineMode) return;
+  if(!snap.metadata.fromCache){ receivedPostsSnapshot = true; offlineMode = false; }
+  let newPosts = []; markers.clearLayers();
+  snap.forEach(doc => {
+    let d = doc.data(); d.id = doc.id; newPosts.push(d);
+    if(typeof d.lat === 'number' && typeof d.lng === 'number'){
+      L.marker([d.lat, d.lng]).addTo(markers).bindPopup(`<b>${d.locationName}</b><br>${(d.text||'').slice(0,30)}`);
+    }
+  });
+  allPosts = newPosts;
+  if(!currentFeedList || currentFeedList === allPosts) currentFeedList = newPosts;
+  renderFeed(currentFeedList);
+  renderTrending();
+  if(!deepLinkHandled){ deepLinkHandled = true; handleDeepLink(); }
+}, err => {
+  console.warn('posts snapshot error', err);
+  enableOfflineMode();
+});
+
+/* ===================== CREATE POST ===================== */
+async function createPost(){
+  if(!currentUser && !offlineMode) return openAuth();
+  let text = document.getElementById('postText').value;
+  let custom = document.getElementById('customLoc').value;
+  if(!text && !selectedFile) return alert("Write something or add photo/video");
+  document.getElementById('uploadStatus').style.display = 'block';
+  document.getElementById('uploadStatus').innerText = '⏳ Uploading...';
+  let photoUrl = "", videoUrl = "", mediaType = "";
+  try{
+    if(offlineMode){
+      if(selectedType === 'video') throw new Error("Video posts need Firebase Storage. Text and photo posts work offline.");
+      if(selectedFile) photoUrl = await new Promise((resolve, reject) => {
+        let reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(selectedFile);
+      });
+      let post = {
+        id: 'local_' + Date.now(), text,
+        locationName: custom || myLocationName, lat: myLat, lng: myLng,
+        photoUrl, videoUrl, mediaType: selectedFile ? 'image' : '',
+        user: currentUser?.email || 'Local user', userId: currentUser?.uid || 'offline',
+        timestamp: new Date().toISOString(), views: 0, likes: 0, pinnedUntil: null
+      };
+      allPosts = [post, ...allPosts];
+      localStorage.setItem('delaj_local_posts', JSON.stringify(allPosts));
+      resetCreateForm();
+      return;
+    }
+    if(selectedFile){
+      if(selectedType === 'video'){ videoUrl = await uploadToStorage(selectedFile); mediaType = 'video'; }
+      else { let ref = storage.ref(`posts/${Date.now()}.jpg`); await ref.put(selectedFile); photoUrl = await ref.getDownloadURL(); mediaType = 'image'; }
+    }
+    await db.collection("posts").add({
+      text, locationName: custom || myLocationName, lat: myLat, lng: myLng,
+      photoUrl, videoUrl, mediaType,
+      user: currentUser.email, userId: currentUser.uid,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      views: 0, likes: 0, pinnedUntil: null
+    });
+    resetCreateForm();
+  }catch(e){
+    alert(e.message);
+    document.getElementById('uploadStatus').style.display = 'none';
+  }
+}
+function resetCreateForm(){
+  document.getElementById('postText').value = "";
+  document.getElementById('customLoc').value = "";
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('videoPreview').style.display = 'none';
+  selectedFile = null; selectedType = null;
+  document.getElementById('photoInput').value = "";
+  document.getElementById('mediaInfo').innerText = "";
+  document.getElementById('uploadStatus').style.display = 'none';
+  toggleCreate(); switchTab('feed');
+}
+
+/* ===================== RENDER FEED ===================== */
+function renderFeed(list){
+  currentFeedList = list;
+  let sorted = [...list].sort((a, b) => {
+    let ap = a.pinnedUntil && timestampDate(a.pinnedUntil) > new Date() ? 1 : 0;
+    let bp = b.pinnedUntil && timestampDate(b.pinnedUntil) > new Date() ? 1 : 0;
+    return bp - ap;
+  });
+  document.getElementById('posts').innerHTML = sorted.map(p => {
+    let isPinned = p.pinnedUntil && timestampDate(p.pinnedUntil) > new Date();
+    let liked = myLikes.has(p.id);
+    let time = p.timestamp ? timeAgo(timestampDate(p.timestamp)) : 'now';
+    let isMine = p.userId === currentUser?.uid;
+    return `<div class="post-card ${isPinned ? 'pin-card' : ''}" id="post-${p.id}" data-id="${p.id}">
+      <div class="post-media">
+        ${p.videoUrl
+          ? `<video src="${p.videoUrl}" controls playsinline preload="metadata" onplay="countView('${p.id}')"></video>`
+          : `${p.photoUrl
+              ? `<img src="${p.photoUrl}" loading="lazy" alt="">`
+              : `<div style="padding:30px;color:#444;text-align:center">📍 ${escapeHtml(p.text || '')}</div>`}`}
+        ${isPinned ? `<span class="pinned-tag">📌 PINNED TOP</span>` : ''}
+      </div>
+      <div class="post-info">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span class="loc-pill">📍 ${escapeHtml(p.locationName)}</span>
+          <span style="font-size:11px;color:#888">👁️ ${p.views || 0} • ${time}</span>
+        </div>
+        ${p.videoUrl || p.photoUrl ? `<div style="margin:8px 0;font-size:14px">${escapeHtml(p.text || '')}</div>` : ''}
+        <div style="font-size:11px;color:#555;margin-top:4px">@${escapeHtml((p.user || 'user').split('@')[0])}</div>
+        <div class="action-row">
+          <button class="act ${liked ? 'liked' : ''}" onclick="likePost('${p.id}')"><span>${liked ? '❤️' : '🤍'}</span> <b>${p.likes || 0}</b></button>
+          <button class="act" onclick="sharePost('${p.id}')"><span>↗️</span> Share</button>
+          <button class="act"><span>👁️</span> ${p.views || 0}</button>
+          ${(isMine && !isPinned) ? `<button class="act" style="margin-left:auto;background:#00ff88;color:#000;padding:6px 14px;border-radius:20px;font-weight:800" onclick="payToPin('${p.id}')">💰 Pin ₦1k/24h</button>` : ''}
+          ${isPinned ? `<span style="margin-left:auto;color:gold;font-size:11px;font-weight:700">Pinned till ${timestampDate(p.pinnedUntil).toLocaleTimeString()}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('') || `<div style="padding:60px;text-align:center;color:#555"><h3>No posts yet</h3><p style="font-size:12px;margin-top:6px">Be first to post in ${escapeHtml(myLocationName)}</p></div>`;
+  if(offlineMode) document.getElementById('posts').insertAdjacentHTML('afterbegin','<p style="padding:10px;color:#888;text-align:center;font-size:11px">Offline mode: posts are saved only in this browser.</p>');
+  setupViewObserver();
+}
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function timestampDate(value){
+  return value && typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+}
+function timeAgo(d){
+  let s = Math.floor((new Date() - d) / 1000);
+  if(s < 60) return s + 's ago';
+  if(s < 3600) return Math.floor(s / 60) + 'm ago';
+  if(s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+/* ===================== VIEW COUNT ===================== */
+function countView(id){
+  let v = JSON.parse(localStorage.getItem('viewed_posts') || '[]');
+  if(v.includes(id)) return;
+  if(offlineMode){
+    let post = allPosts.find(p => p.id === id);
+    if(post){ post.views = (post.views || 0) + 1; localStorage.setItem('delaj_local_posts', JSON.stringify(allPosts)); renderFeed(currentFeedList); }
+  } else {
+    db.collection("posts").doc(id).update({ views: firebase.firestore.FieldValue.increment(1) })
+      .catch(err => console.error('Could not count post view', err));
+  }
+  v.push(id); localStorage.setItem('viewed_posts', JSON.stringify(v));
+}
+function setupViewObserver(){
+  let obs = new IntersectionObserver((ents) => {
+    ents.forEach(e => { if(e.isIntersecting) setTimeout(() => countView(e.target.dataset.id), 2000); });
+  }, { threshold: 0.6 });
+  document.querySelectorAll('.post-card').forEach(c => obs.observe(c));
+}
+
+/* ===================== LIKES (per user, in Firestore) ===================== */
+async function likePost(id){
+  if(!currentUser){ openAuth(); return; }
+  if(offlineMode){ alert('Likes need an internet connection.'); return; }
+
+  const likeRef = db.collection('likes').doc(`${currentUser.uid}_${id}`);
+  const postRef = db.collection('posts').doc(id);
+  const wasLiked = myLikes.has(id);
+
+  if(wasLiked) myLikes.delete(id); else myLikes.add(id);
+  renderFeed(currentFeedList);
+
+  try{
+    await db.runTransaction(async tx => {
+      const likeDoc = await tx.get(likeRef);
+      const postDoc = await tx.get(postRef);
+      if(!postDoc.exists) throw new Error('Post no longer exists');
+      if(likeDoc.exists){
+        tx.delete(likeRef);
+        tx.update(postRef, { likes: firebase.firestore.FieldValue.increment(-1) });
+      } else {
+        tx.set(likeRef, {
+          userId: currentUser.uid,
+          postId: id,
+          userEmail: currentUser.email || '',
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        tx.update(postRef, { likes: firebase.firestore.FieldValue.increment(1) });
+      }
+    });
+  }catch(err){
+    console.error('Like failed:', err);
+    if(wasLiked) myLikes.add(id); else myLikes.delete(id);
+    renderFeed(currentFeedList);
+    alert('Could not save like: ' + err.message);
+  }
+}
+
+/* ===================== SHARE (per-post deep link) ===================== */
+function buildPostLink(postId){
+  const url = new URL(window.location.href);
+  url.searchParams.set('post', postId);
+  url.hash = '';
+  return url.toString();
+}
+async function sharePost(postId){
+  const url = buildPostLink(postId);
+  const post = allPosts.find(p => p.id === postId);
+  const title = post ? `📍 ${post.locationName} — DelajLocation` : 'DelajLocation';
+  const text  = post ? (post.text || 'Check this post on DelajLocation') : 'Check this post on DelajLocation';
+
+  if(navigator.share){
+    try{ await navigator.share({ title, text, url }); return; }catch(_){}
+  }
+  try{
+    await navigator.clipboard.writeText(url);
+    alert('🔗 Post link copied!\n\n' + url);
+  }catch(_){
+    prompt('Copy this post link:', url);
+  }
+}
+function handleDeepLink(){
+  const params = new URLSearchParams(window.location.search);
+  const postId = params.get('post');
+  if(!postId) return;
+  switchTab('feed');
+  let tries = 0;
+  const tick = () => {
+    const el = document.getElementById('post-' + postId);
+    if(el){
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('highlighted');
+      setTimeout(() => el.classList.remove('highlighted'), 3500);
+      return true;
+    }
+    return false;
+  };
+  if(tick()) return;
+  const timer = setInterval(() => {
+    tries++;
+    if(tick() || tries > 24) clearInterval(timer);
+  }, 500);
+}
+
+/* ===================== TRENDING / FILTERS ===================== */
+function renderTrending(){
+  let counts = {};
+  allPosts.forEach(p => counts[p.locationName] = (counts[p.locationName] || 0) + 1);
+  let sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 15);
+  document.getElementById('trendingList').innerHTML = sorted.map(([loc, num]) =>
+    `<div class="trend-item" onclick="filterByLoc('${escapeAttr(loc)}')"><div><b>📍 ${escapeHtml(loc)}</b><div style="font-size:11px;color:#666;margin-top:2px">${num} posts</div></div><span style="background:#1a1a1a;padding:6px 12px;border-radius:20px;font-size:12px">${num}</span></div>`
+  ).join('') || "<p style='color:#555'>No trending yet</p>";
+}
+function escapeAttr(s){
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+function showAllPosts(){
+  document.getElementById('f-all').classList.add('active');
+  document.getElementById('f-near').classList.remove('active');
+  renderFeed(allPosts);
+}
+function filterByLoc(loc){
+  switchTab('feed'); showAllPosts();
+  renderFeed(allPosts.filter(x => x.locationName === loc));
+}
+function filterNear(){
+  if(!hasRealLocation){
+    if(confirm('We don\'t have your location yet. Allow location access now?')) requestLocation(true);
+    return;
+  }
+  let near = allPosts.filter(p => {
+    if(!p.lat) return false;
+    let d = Math.sqrt(Math.pow(p.lat - myLat, 2) + Math.pow(p.lng - myLng, 2)) * 111;
+    return d <= 5;
+  });
+  if(near.length === 0) return alert("No posts within 5km of you");
+  renderFeed(near); switchTab('feed');
+  document.getElementById('f-near').classList.add('active');
+  document.getElementById('f-all').classList.remove('active');
+}
+
+/* ===================== PAYSTACK PIN ===================== */
+function payToPin(postId){
+  if(!currentUser) return openAuth();
+  if(PAYSTACK_PUBLIC_KEY.includes("PUT_")) return alert("Add your Paystack public key at top of code");
+  let handler = PaystackPop.setup({
+    key: PAYSTACK_PUBLIC_KEY,
+    email: currentUser.email,
+    amount: 1000 * 100,
+    currency: 'NGN',
+    ref: 'PIN_' + postId + '_' + Date.now(),
+    callback: function(res){
+      let until = new Date(); until.setHours(until.getHours() + 24);
+      db.collection("posts").doc(postId).update({
+        pinnedUntil: firebase.firestore.Timestamp.fromDate(until),
+        isPinned: true,
+        pinPaymentRef: res.reference
+      }).then(() => {
+        alert("✅ PAID! Your post is PINNED TOP for 24 hours");
+        db.collection("transactions").add({
+          postId, userId: currentUser.uid, amount: 1000,
+          ref: res.reference,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }).catch(err => alert(`Payment succeeded, but pinning failed: ${err.message}`));
+    },
+    onClose: function(){}
+  });
+  handler.openIframe();
+}
+
+switchTab('feed');
+</script>
+</body>
+</html>
